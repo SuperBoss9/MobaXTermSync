@@ -1,0 +1,10 @@
+{
+  "ProcessPattern": "MobaXterm*.exe",
+  "AutoTag": true,
+  "DeleteWins": true,
+  "DebounceSeconds": 15,
+  "BackupCount": 20,
+  "MassDeleteLimitPercent": 50,
+  "WeeklyDay": "Sunday",
+  "WeeklyTime": "04:00"
+}

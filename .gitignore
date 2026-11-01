@@ -1,0 +1,12 @@
+# Local / editor
+*.tmp
+*.bak
+*.bak-*
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Machine-specific configs may be committed intentionally for multi-PC sync;
+# keep secrets out of personal notes if any appear later.
+*.local.json

@@ -85,7 +85,11 @@ powershell.exe -ExecutionPolicy Bypass -File .\app\Install-MobaSync.ps1 `
 
 ## Подтверждение массового удаления
 
-Если доля удалений относительно `lastApplied` ≥ `MassDeleteLimitPercent` (по умолчанию 50%):
+Защита от массового удаления: если доля удалений относительно `lastApplied` **строго больше** `MassDeleteLimitPercent`.
+
+В `config\common.json` значение **`100` отключает** эту защиту (текущая настройка по умолчанию). Чтобы снова включить, поставьте например `50`.
+
+Если защита включена и сработала:
 
 - глобальный журнал не меняется;
 - создаётся `%LOCALAPPDATA%\MobaBookmarkSync\<NodeId>\pending-delete.json`;

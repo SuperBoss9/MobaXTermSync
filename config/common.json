@@ -4,7 +4,7 @@
   "DeleteWins": true,
   "DebounceSeconds": 15,
   "BackupCount": 20,
-  "MassDeleteLimitPercent": 50,
+  "MassDeleteLimitPercent": 100,
   "WeeklyDay": "Sunday",
   "WeeklyTime": "04:00"
 }

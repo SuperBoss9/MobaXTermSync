@@ -1437,9 +1437,10 @@ function Invoke-MobaSyncCore {
 
         $deletes = @($changes | Where-Object { $_.Kind -eq 'delete' })
         $activeCount = @($state.Bookmarks.PSObject.Properties).Count
-        if ($activeCount -gt 0 -and $deletes.Count -gt 0) {
+        $limit = [int]$CommonConfig.MassDeleteLimitPercent
+        # MassDeleteLimitPercent >= 100 disables the safeguard.
+        if ($limit -lt 100 -and $activeCount -gt 0 -and $deletes.Count -gt 0) {
             $pct = [int][Math]::Floor(($deletes.Count * 100.0) / [Math]::Max($activeCount, 1))
-            $limit = [int]$CommonConfig.MassDeleteLimitPercent
             if ($pct -gt $limit) {
                 $pd = [ordered]@{
                     schema       = 1
@@ -1752,20 +1753,26 @@ function Register-MobaSyncTasks {
     $names = Get-MobaSyncTaskNames -ComputerName $ComputerConfig.ComputerName
     $watchScript = Join-Path $SyncRoot 'app\Watch-MobaXterm.ps1'
     $invokeScript = Join-Path $SyncRoot 'app\Invoke-MobaSync.ps1'
-    $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $hiddenLauncher = Join-Path $SyncRoot 'app\Run-Hidden.vbs'
+    $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+    if (-not (Test-Path -LiteralPath $hiddenLauncher)) {
+        throw "Hidden launcher missing: $hiddenLauncher"
+    }
 
-    $watchArg = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$watchScript`""
-    $weeklyArg = "-NoProfile -ExecutionPolicy Bypass -File `"$invokeScript`" -Reason Weekly"
+    # wscript Run(..., 0) avoids the console flash that -WindowStyle Hidden still shows.
+    $watchArg = "//B //nologo `"$hiddenLauncher`" `"$watchScript`""
+    $weeklyArg = "//B //nologo `"$hiddenLauncher`" `"$invokeScript`" -Reason Weekly"
 
     if ($Force) {
         Unregister-MobaSyncTasks -ComputerName $ComputerConfig.ComputerName
     }
 
     # Watch at logon
-    $watchAction = New-ScheduledTaskAction -Execute $ps -Argument $watchArg -WorkingDirectory (Join-Path $SyncRoot 'app')
+    $watchAction = New-ScheduledTaskAction -Execute $wscript -Argument $watchArg -WorkingDirectory (Join-Path $SyncRoot 'app')
     $watchTrigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
     $watchSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-        -StartWhenAvailable -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+        -StartWhenAvailable -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
+        -ExecutionTimeLimit (New-TimeSpan -Days 3) -Hidden
     $watchPrincipal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName $names.Watch -Action $watchAction -Trigger $watchTrigger `
         -Settings $watchSettings -Principal $watchPrincipal -Force | Out-Null
@@ -1773,10 +1780,11 @@ function Register-MobaSyncTasks {
     # Weekly
     $day = [string]$CommonConfig.WeeklyDay
     $time = [string]$CommonConfig.WeeklyTime
-    $weeklyAction = New-ScheduledTaskAction -Execute $ps -Argument $weeklyArg -WorkingDirectory (Join-Path $SyncRoot 'app')
+    $weeklyAction = New-ScheduledTaskAction -Execute $wscript -Argument $weeklyArg -WorkingDirectory (Join-Path $SyncRoot 'app')
     $weeklyTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $day -At $time
     $weeklySettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-        -StartWhenAvailable -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5)
+        -StartWhenAvailable -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5) `
+        -Hidden
     try {
         $weeklySettings.WakeToRun = $true
     }

@@ -87,6 +87,7 @@ function Test-RequiredFiles {
         (Join-Path $SyncRoot 'app\MobaSync.psm1'),
         (Join-Path $SyncRoot 'app\Invoke-MobaSync.ps1'),
         (Join-Path $SyncRoot 'app\Watch-MobaXterm.ps1'),
+        (Join-Path $SyncRoot 'app\Run-Hidden.vbs'),
         (Join-Path $SyncRoot 'config\common.json')
     )
     foreach ($f in $required) {
@@ -375,11 +376,12 @@ function Invoke-InstallFlow {
     Write-Host ("Scheduled task (weekly): {0}" -f $taskNames.Weekly)
 
     $watchScript = Join-Path $SyncRoot 'app\Watch-MobaXterm.ps1'
+    $hiddenLauncher = Join-Path $SyncRoot 'app\Run-Hidden.vbs'
     try {
-        Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') `
-            -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-File', $watchScript) `
+        Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\wscript.exe') `
+            -ArgumentList @('//B', '//nologo', $hiddenLauncher, $watchScript) `
             -WindowStyle Hidden | Out-Null
-        Write-Host 'Watcher started in background.'
+        Write-Host 'Watcher started in background (no console window).'
     }
     catch {
         Write-Warning ("Could not start watcher now; it will start at next logon. ({0})" -f $_.Exception.Message)
